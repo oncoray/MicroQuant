@@ -1,0 +1,12 @@
+Hyperparameters:
+  BATCH_SIZE: 28
+  CRITERION: CrossEntropyLoss()
+  EPOCHS: 150
+  LEARNING_RATE: 2.0e-05
+  N_CLASSES: 3
+  PATIENCE: 20
+Input:
+  IMG_SIZE: 256
+  PIX_SIZE: 2.5
+Output:
+  Best_model: E:\Promotion\Projects\2021_Necrotic_Segmentation/data\Experiment_20210429_152839\model\bst_model256_0.7826.bin

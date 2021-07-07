@@ -1,1 +1,5 @@
+# Omit these directories
 ImgData
+
+# Omit these filetypes
+*.bin

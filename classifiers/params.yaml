@@ -9,4 +9,4 @@ Input:
   IMG_SIZE: 256
   PIX_SIZE: 2.5
 Output:
-  Best_model: E:\Promotion\Projects\2021_Necrotic_Segmentation/data\Experiment_20210429_152839\model\bst_model256_0.7826.bin
+  Best_model: E:\Promotion\Projects\2021_Necrotic_Segmentation/data\Experiment_20210425_213426\model\bst_model256_0.7974.bin

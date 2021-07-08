@@ -9,14 +9,17 @@ Source: https://github.com/amaarora/amaarora.github.io/blob/master/nbs/Training.
 import aicspylibczi
 import tifffile as tf
 import os
+import cv2
+from skimage import transform
 
-import yaml
 from tqdm import tqdm
 import numpy as np
 
-import segmentation_models_pytorch as smp
 from torch.utils.data import DataLoader
 import torch
+
+import albumentations as A
+from albumentations.augmentations.transforms import PadIfNeeded
 
 class InferenceDataset():
     def __init__(self, filename, augmentation=None,
@@ -34,14 +37,14 @@ class InferenceDataset():
         self.max_offset = max_offset
         self.n_offsets = n_offsets
         
-        czi = aicspylibczi.CziFile(self.filename)
-        self.image = czi.read_mosaic(C = 0, scale_factor=self.resolution/target_pixsize)
-        self.image = self.image[::-1, :, :]
+        self.czi = aicspylibczi.CziFile(self.filename)
+        self.image = self.czi.read_mosaic(scale_factor=self.resolution/target_pixsize, C=0).squeeze()
         self.resolution = target_pixsize
         
-        # transpose if necessary
+        # transpose if necessary so that dimensions are CXY
         if self.image.shape[-1] == 3:
             self.image = self.image.transpose((2, 0, 1))
+        self.image = self.image[::-1, :, :]
         
         self.prediction = np.zeros_like(self.image, dtype='float32')
         
@@ -90,7 +93,7 @@ class InferenceDataset():
     
     def __setitem__(self, key, value):
         
-        stride = 2
+        stride = 4
         coord = self.coords[key]
         ps = self.patch_size
         
@@ -130,66 +133,28 @@ class InferenceDataset():
                     self[i*batch_size + b_idx] = out[b_idx]
                         
         # average predictions
-        self.prediction = np.divide(self.prediction, self.N_map)     
+        # self.prediction = np.divide(self.prediction, self.N_map)     
     
-    def postprocess(self, filename, project=True, **kwargs):
+    def postprocess(self, project=True, **kwargs):
         """
         Export prediction map to file with deflation compression
         """
         
         filename = kwargs.get('filename', None)
+        resize = kwargs.get('resize', True)
         
         if project:
             self.prediction = np.argmax(self.prediction, axis=0)
+            
+        if resize:
+            w = self.czi.get_mosaic_bounding_box().w
+            h = self.czi.get_mosaic_bounding_box().h
+            self.prediction = cv2.resize(self.prediction,
+                                         (w, h),
+                                         interpolation=cv2.INTER_NEAREST)
         if filename is not None:
             tf.imwrite(filename, self.prediction)
         
         return self.prediction
 
 
-def segment(fname_in, fname_config, fname_model, **kwargs):
-    
-    fname_out = kwargs.get('fname_out', '')
-    STRIDE = kwargs.get('stride', 16)
-    MAX_OFFSET = kwargs.get('max_offset', 64)
-    N_OFFSETS = kwargs.get('n_offsets', 10)
-    SERIES = kwargs.get('series', 2)
-    
-    # read config
-    with open(fname_config, "r") as yamlfile:
-        cfg = yaml.load(yamlfile, Loader=yaml.FullLoader)    
-        
-    IMG_SIZE = int(cfg['Input']['IMG_SIZE']/2)
-    batch_size = int(cfg['Hyperparameters']['BATCH_SIZE'] * 4)
-    PIX_SIZE = cfg['Input']['PIX_SIZE']
-    N_CLASSES = cfg['Hyperparameters']['N_CLASSES']
-
-    model = smp.Unet(
-        encoder_name='resnet50', 
-        encoder_weights='imagenet', 
-        classes=N_CLASSES, 
-        activation=None,
-    )
-    
-    if not torch.cuda.is_available():
-        DEVICE = 'cpu'
-        model.load_state_dict(torch.load(fname_model, map_location=torch.device('cpu'))['model_state_dict'])
-    else:
-        DEVICE = 'cuda'
-        model.load_state_dict(torch.load(fname_model)['model_state_dict'])
-    
-    
-    model = model.to(DEVICE)
-    model.eval()
-        
-    ds = InferenceDataset(fname_in,
-                          patch_size=IMG_SIZE,
-                          stride=STRIDE,
-                          augmentation=None,
-                          target_pixsize=PIX_SIZE,
-                          max_offset=MAX_OFFSET,
-                          n_offsets=N_OFFSETS)
-    ds.predict(model, batch_size=batch_size, device=DEVICE)
-    prediction = ds.postprocess()
-    
-    return prediction

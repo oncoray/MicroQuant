@@ -1,5 +1,6 @@
 # Omit these directories
 ImgData
+registration/elastix-5.0.1-win64
 
 # Omit these filetypes
 *.bin

@@ -14,7 +14,10 @@
    version="1.1"
    id="svg8"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
-   sodipodi:docname="Logo.svg">
+   sodipodi:docname="Logo.svg"
+   inkscape:export-filename=".\Logo.png"
+   inkscape:export-xdpi="299.82367"
+   inkscape:export-ydpi="299.82367">
   <defs
      id="defs2">
     <linearGradient
@@ -243,7 +246,8 @@
        x1="52.160713"
        y1="-40.065475"
        x2="574.5238"
-       y2="-86.178574" />
+       y2="-86.178574"
+       gradientTransform="translate(-19.058724,-186.37159)" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -253,10 +257,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="836.32041"
-     inkscape:cy="-231.54834"
+     inkscape:cx="112.91428"
+     inkscape:cy="-293.34954"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g1139"
      inkscape:document-rotation="0"
      showgrid="false"
      inkscape:window-width="2560"
@@ -282,36 +286,39 @@
      id="layer1">
     <g
        id="g1139"
-       transform="matrix(0.34867844,0,0,0.34867844,-16.781175,-10.073944)"
-       style="stroke-width:2.86799">
+       transform="matrix(0.109419,0,0,0.109419,38.872776,85.128437)"
+       style="stroke-width:9.13924"
+       inkscape:export-filename=".\Logo.png"
+       inkscape:export-xdpi="199.88239"
+       inkscape:export-ydpi="199.88239">
       <rect
-         style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:2.86799;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+         style="fill:#0d1117;fill-opacity:1;stroke:#000000;stroke-width:9.13924;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
          id="rect966"
          width="579.97949"
          height="139.51469"
-         x="27.79603"
-         y="-143.25647" />
+         x="8.737298"
+         y="-329.62808" />
       <text
          xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:93.7451px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:url(#linearGradient1141);fill-opacity:1;stroke-width:0.758818"
-         x="51.185551"
-         y="-39.950207"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:93.7451px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:url(#linearGradient1141);fill-opacity:1;stroke-width:2.4181"
+         x="32.126823"
+         y="-226.32179"
          id="text835"><tspan
            sodipodi:role="line"
            id="tspan833"
-           x="51.185551"
-           y="-39.950207"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:93.7451px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:url(#linearGradient1141);fill-opacity:1;stroke-width:0.758818">Micro  uant</tspan></text>
+           x="32.126823"
+           y="-226.32179"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:93.7451px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:url(#linearGradient1141);fill-opacity:1;stroke-width:2.4181">Micro  uant</tspan></text>
       <g
          id="g964"
-         transform="translate(-28.0633,-5.6126601)"
-         style="stroke-width:2.86799">
+         transform="translate(-47.122024,-191.98425)"
+         style="stroke-width:9.13924">
         <image
            sodipodi:absref="E:\Promotion\Projects\2020_Radiomics\Docs\Manuscript\Figures\Figure_workflow\imgs\N182d_SAS_18_Histology_1_181210_HE.jpg"
            xlink:href="../../2020_Radiomics/Docs/Manuscript/Figures/Figure_workflow/imgs/N182d_SAS_18_Histology_1_181210_HE.jpg"
            transform="translate(-1.1339286,153.08036)"
            clip-path="url(#clipPath984)"
-           style="stroke-width:0.755226"
+           style="stroke-width:2.40664"
            y="-319.8103"
            x="314.81076"
            id="image978"
@@ -322,11 +329,11 @@
            id="g936"
            clip-path="url(#clipPath954)"
            transform="matrix(0.10379757,0.03462053,-0.03462053,0.10379757,511.06769,-21.425093)"
-           style="stroke-width:26.2111">
+           style="stroke-width:83.5252">
           <image
              sodipodi:absref="E:\Promotion\Projects\2020_Radiomics\Docs\Manuscript\Figures\Figure_workflow\imgs\N182d_SAS_18_Histology_1_181210_HE_segmented_DL.jpg"
              xlink:href="../../2020_Radiomics/Docs/Manuscript/Figures/Figure_workflow/imgs/N182d_SAS_18_Histology_1_181210_HE_segmented_DL.jpg"
-             style="stroke-width:22.4223"
+             style="stroke-width:71.4519"
              transform="matrix(1.1860939,0,0,1.1520792,-1902.5868,-886.52952)"
              clip-path="url(#clipPath906)"
              y="300.23453"
@@ -338,7 +345,7 @@
           <image
              sodipodi:absref="E:\Promotion\Projects\2020_Radiomics\Docs\Manuscript\Figures\Figure_workflow\imgs\N182d_SAS_18_Histology_1_181210_IF_segmented.jpg"
              xlink:href="../../2020_Radiomics/Docs/Manuscript/Figures/Figure_workflow/imgs/N182d_SAS_18_Histology_1_181210_IF_segmented.jpg"
-             style="stroke-width:26.2111"
+             style="stroke-width:83.5252"
              transform="translate(1040.1905,387.04762)"
              clip-path="url(#clipPath928)"
              y="-894.51141"

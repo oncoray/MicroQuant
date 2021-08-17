@@ -15,6 +15,7 @@ import os
 import cv2
 import subprocess
 import tifffile as tf
+import h5py
 
 import aicspylibczi
 import aicsimageio
@@ -28,8 +29,143 @@ import segmentation_models_pytorch as smp
 from torch.utils.data import DataLoader
 import torch
 
+from utils import utils
 from utils.utils import normalize
+from utils.utils import find_Ilastik
 
+from skimage import data, segmentation, feature, future
+from sklearn.ensemble import RandomForestClassifier
+from functools import partial
+import joblib
+
+class IFImageDataset():
+    def __init__(self, filename, model, **kwargs):
+
+        self.sigma_min = kwargs.get('sigma_min', 4)
+        self.sigma_max = kwargs.get('sigma_max', 16)
+        self.use_dask = kwargs.get('use_dask', True)
+        
+        self.filename = filename
+        self.classifier = model.sklearn_IF_classifier
+        
+        self.image = self.read_czi(self.filename)  # read czi
+        self.clf = joblib.load(self.classifier)  # load RF classifier file
+        
+
+        
+        
+        self.features_func = partial(feature.multiscale_basic_features,
+                                     intensity=True, edges=False, texture=True,
+                                     sigma_min=self.sigma_min, sigma_max=self.sigma_max,
+                                     multichannel=True, num_workers=4)    
+    
+    def read_czi(self, filename):
+        
+        # Read czi image
+        self.AICS = aicsimageio.AICSImage(filename)
+        
+        if self.use_dask:
+            self.dask_image = self.AICS.get_dask_image_data("YXC")
+        else:
+            self.dask_image = self.AICS.get_image_data("YXC")
+            
+        self.dask_image = normalize(self.dask_image)
+        self.prediction = np.zeros_like(self.dask_image[:,:,0])  # allocate output
+        
+
+    def predict(self, ts=512):
+        
+        shape = self.dask_image.shape
+        X = shape[0]//ts + 1
+        Y = shape[1]//ts + 1
+        
+        tk0 = tqdm(np.arange(0, X, 1))
+        for x in tk0:
+            for y in np.arange(0, Y, 1):
+                
+                try:
+                    img = self.dask_image[x*ts:x*ts + ts,
+                                          y*ts:y*ts + ts,
+                                          :]
+                    features = self.features_func(img)
+                    self.prediction[x*ts:x*ts + ts,
+                                    y*ts:y*ts + ts] = future.predict_segmenter(features, self.clf)
+                    tk0.set_postfix(Processed_tiles='{:d}/{:d}'.format(y, Y))
+                except Exception:
+                    pass
+                
+    def export(self, filename):
+
+        tf.imwrite(filename, self.prediction)
+        self.foutput = filename
+                
+        
+
+class ILPImageDataset():
+    def __init__(self, filename, classifier, **kwargs):
+        
+        print('*** New image ***')
+        print(f'Source: {filename}')
+        
+        self.filename = filename
+        self.classifier = classifier
+        
+        self.ilastik_exe = kwargs.get('ilastik_exe', find_Ilastik())
+        self.read_czi(filename)
+        self.preprocess()
+        
+        
+    def read_czi(self, filename):
+        
+        # Read czi image
+        self.Image = aicsimageio.AICSImage(filename)
+        self.czi = aicspylibczi.CziFile(filename)
+        
+        if self.Image.dims.C == 1:
+            self.image = self.czi.read_mosaic(C = 0, scale_factor=self.resolution/self.target_pixsize)[0]
+            self.image = self.image.transpose((2,0,1))  # bring image to order CXY
+        
+        else:
+            C0 = self.czi.read_mosaic(C = 0, scale_factor=1)[0][None, :, :]
+            C1 = self.czi.read_mosaic(C = 1, scale_factor=1)[0][None, :, :]
+            C2 = self.czi.read_mosaic(C = 2, scale_factor=1)[0][None, :, :]
+            self.image = np.vstack([C0, C1, C2])
+            
+        
+    def preprocess(self):
+        "Re-Save image as tif"
+        
+        # normalize to predefined quartile ranges
+        self.image = normalize(self.image).astype('uint8')
+        self.image = self.image.transpose((1,2,0))[None, None, :]  # add empty T and Z axis
+        
+        outname = os.path.join(
+            os.path.dirname(self.filename),
+            '1_seg',
+            os.path.basename(self.filename).replace('.czi', '') + '_norm.hdf5' 
+            )
+        
+        with h5py.File(outname, "w") as f:
+            dset = f.create_dataset("data", self.image.shape, chunks=True,
+                                    dtype=self.image.dtype)
+            dset[:] = self.image
+
+        self.tmp_name = outname
+        
+    def predict(self):
+        
+        "Run Ilastik classification"
+        cmd = [
+            self.ilastik_exe, '--headless',
+            f'--project={self.classifier}',
+            '--output_format=tif',
+            '--export_dtype=uint8',
+            '--export_source=Simple Segmentation',
+            self.tmp_name
+            ]
+        
+        subprocess.check_output(cmd)
+        
 class HEImageDataset():
     def __init__(self, filename, n_classes, **kwargs):
         
@@ -44,6 +180,8 @@ class HEImageDataset():
         self.batch_size = kwargs.get('batch_size', 20)
         self.device = kwargs.get('device', 'cuda')
         
+        self.c_order =kwargs.get('c_order', 'RGB')
+        
         print(f'\tPixel size: {self.target_pixsize}')
         print(f'\tPatch size: {self.patch_size}')
         print(f'\tbatch size: {self.batch_size}')        
@@ -51,16 +189,7 @@ class HEImageDataset():
         self.filename = filename
         self.n_classes = n_classes
         
-        # Read czi image
-        self.Image = aicsimageio.AICSImage(self.filename)
-        self.czi = aicspylibczi.CziFile(self.filename)
-        
-        self.resolution = self.Image.physical_pixel_sizes.X/10
-        
-        C0 = self.czi.read_mosaic(C = 0, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
-        C1 = self.czi.read_mosaic(C = 1, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
-        C2 = self.czi.read_mosaic(C = 2, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
-        self.image = np.vstack([C0, C1, C2])
+        self.read_czi(filename)
         
         # transpose if necessary
         if self.image.shape[-1] == 3:
@@ -71,6 +200,32 @@ class HEImageDataset():
         
         # assign indeces on 2d grid and pad to prevent index errors
         self.create_samplelocations()
+        
+    def read_czi(self, filename):
+        
+        # Read czi image
+        self.Image = aicsimageio.AICSImage(filename)
+        self.czi = aicspylibczi.CziFile(filename)
+        
+        self.resolution = self.Image.physical_pixel_sizes.X/10
+        
+        if self.Image.dims.C == 1:
+            self.image = self.czi.read_mosaic(C = 0, scale_factor=self.resolution/self.target_pixsize)[0]
+            self.image = self.image.transpose((2,0,1))  # bring image to order CXY
+        
+        else:
+            C0 = self.czi.read_mosaic(C = 0, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
+            C1 = self.czi.read_mosaic(C = 1, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
+            C2 = self.czi.read_mosaic(C = 2, scale_factor=self.resolution/self.target_pixsize)[0][None, :, :]
+            self.image = np.vstack([C0, C1, C2])
+            
+        # re-arrange color axis if image is BGR and not RGB
+        if self.c_order != 'BGR':
+            self.image = self.image[::-1]
+        elif self.c_order == 'RGB':
+            pass
+            
+        
         
     def create_samplelocations(self):
         """
@@ -83,12 +238,14 @@ class HEImageDataset():
         Y = np.arange(self.patch_size//2, self.image.shape[2] - self.patch_size//2, self.density)
         
         self.locations = []
+        self.blacklisted_locations = []
         for x in tqdm(X, desc='\tBrowsing image...'):
             for y in Y:
                 patch = self.image[:,
                                    x - self.patch_size//2 : x + self.patch_size//2,
                                    y - self.patch_size//2 : y + self.patch_size//2]
                 if np.sum(patch.sum(axis=0) == 0) > 150 or np.sum(patch.sum(axis=0) >= 3*np.iinfo(patch.dtype).max) >=150:
+                    self.blacklisted_locations.append([x,y])
                     continue
                 self.locations.append([x, y])
         
@@ -127,7 +284,7 @@ class HEImageDataset():
 
         with torch.no_grad():
             dataloader = DataLoader(self, batch_size=self.batch_size,
-                                    shuffle=True, num_workers=0)        
+                                    shuffle=False, num_workers=0)
             tk0 = tqdm(dataloader, total=len(dataloader), desc='\tTilewise forward segmentation...')
             for b_idx, data in enumerate(tk0):
                     
@@ -139,11 +296,15 @@ class HEImageDataset():
                 for idx in range(out.shape[0]):
                     self[b_idx*self.batch_size + idx] = out[idx]
                     
-                    # plt.figure()
-                    # plt.imshow(np.argmax(self.prediction, axis=0), vmin=0, vmax=0+self.n_classes)
-                    # plt.savefig(os.path.join(r'E:\Promotion\Projects\2021_Necrotic_Segmentation\visualization', 
-                    #                          f'{b_idx*self.batch_size + idx}'))
-                    # plt.close()
+        # set blacklisted tiles to correct background
+        size = self.patch_size
+        for loc in self.blacklisted_locations:
+            x, y = loc[0], loc[1]
+            
+            self.prediction[0,
+                x - size//2 : x + size//2,
+                y - size//2 : y + size//2] = np.ones((size, size))
+                    
 
     def export(self, filename, **kwargs):
         """
@@ -151,21 +312,23 @@ class HEImageDataset():
         """
         
         softmax = kwargs.get('softmax', True)
-        upscale = kwargs.get('upscale', None)
+        upscale = kwargs.get('upscale', True)
         export = kwargs.get('export', True)
         
-        if upscale is not None:
-            assert len(upscale) == 2
+        if upscale:
+            print('\t---> Upscaling')
             self.prediction = self.prediction.transpose((1,2,0))
-            self.prediction = cv2.resize(self.prediction, upscale)
+            self.prediction = cv2.resize(self.prediction,
+                                         dsize=(self.Image.dims.X, self.Image.dims.Y))
         
         if softmax:
-            self.prediction = np.argmax(self.prediction, axis=0)
+            self.prediction = np.argmax(self.prediction, axis=-1)
         
         if export:
             tf.imwrite(filename, self.prediction.astype('uint8'))
+            self.foutput = filename
             
-def segment_HE(ImgPath, **kwargs):
+def segment_he(ImgPath, model, **kwargs):
     """
     Parameters
     ----------
@@ -182,21 +345,28 @@ def segment_HE(ImgPath, **kwargs):
 
     """
     
-    bst_model = kwargs.get('model', r'.\models\HE\segmentation_model.bin')
-    params = kwargs.get('params', r'.\models\HE\segmentation_model.yaml')
+    # Load input from model object
+    bst_model = model.weights_file
+    params = model.params_file
+    
+    assert bst_model is not None
+    assert params is not None
+    
     device = kwargs.get('device', 'cuda')
     stride = kwargs.get('stride', 16)
     output = kwargs.get('output', os.path.join(os.path.dirname(ImgPath),
-                                               'HE_seg_Unet.tif'))
+                                               '1_seg', 'HE_seg_Unet.tif'))
+    batch_size_input = kwargs.get('batch_size', None)
+    img_size_input = kwargs.get('patch_size', None)
     
     if not os.path.exists(ImgPath):
-        raise FileNotFoundError('Input image {ImgPath} not found!')
+        raise FileNotFoundError(f'Input image {ImgPath} not found!')
         
     if not os.path.exists(bst_model):
-        raise FileNotFoundError('Input segmentation model {bst_model} not found!')
+        raise FileNotFoundError(f'Input segmentation model {bst_model} not found!')
         
     if not os.path.exists(params):
-        raise FileNotFoundError('Input parameter file {params} not found!')
+        raise FileNotFoundError(f'Input parameter file {params} not found!')
     
     # read config
     with open(params, "r") as yamlfile:
@@ -206,6 +376,13 @@ def segment_HE(ImgPath, **kwargs):
     batch_size = int(data['Hyperparameters']['BATCH_SIZE'])
     pxsize = data['Input']['PIX_SIZE']
     n_classes = data['Hyperparameters']['N_CLASSES']
+    
+    # check if other inputs have been provided
+    if batch_size_input is not None:
+        batch_size = batch_size_input
+        
+    if img_size_input is not None:
+        img_size = img_size_input
     
     model = smp.Unet(
         encoder_name='resnet50', 
@@ -230,12 +407,12 @@ def segment_HE(ImgPath, **kwargs):
                         augmentation=aug_forw,
                         target_pixsize=pxsize,
                         batch_size=batch_size)
-    ds.predict(model)
-    ds.export(output)
+    ds.predict(model)  # run prediction
+    ds.export(output, upscale=True, softmax=True)
     
-    
+    return ds.foutput
 
-def segment_CD31_Pimo_Hoechst(ImgPath, method='Ilastik', **kwargs):
+def segment_CD31_Pimo_Hoechst(ImgPath, model, method='ilastik', **kwargs):
     """
     Parameters
     ----------
@@ -252,98 +429,25 @@ def segment_CD31_Pimo_Hoechst(ImgPath, method='Ilastik', **kwargs):
 
     """
     
-    # Create temporary directory - for stuff
-    tmp_dir = os.path.join(os.getcwd(), 'tmp')
-    if not os.path.exists(tmp_dir):
-        os.mkdir(tmp_dir)
-        
-    # Preprocess image and save to temporary dir.
-    img = tf.imread(ImgPath)
-    img = normalize(img)
-    f_img = os.path.join(tmp_dir,'_norm.tif')
-    cv2.imwrite(f_img, img[::-1].transpose((1,2,0)))    
+    out_file = os.path.join(os.path.dirname(ImgPath), '1_seg', 'IF_seg.tif')
     
-    if method == 'Ilastik':
-        classifier = kwargs.get('classifier', None)
-        ilastik_exe = kwargs.get('ilastik_exe', None)
+    if method == 'ilastik':
+        
+        classifier = model.ilp_classifier
+        ilastik_exe = kwargs.get('ilastik_exe', find_Ilastik())
         
         assert classifier is not None
         assert ilastik_exe is not None
-        
-        if not os.path.exists(classifier):
-            raise FileNotFoundError(f'Classifier file {classifier} not found')
             
-        if not os.path.exists(ilastik_exe):
-            raise FileNotFoundError(f'Ilastik executable {ilastik_exe} not found')
+        ds = ILPImageDataset(ImgPath, classifier)
+        ds.predict()
         
-        cmd = [
-            ilastik_exe, '--headless',
-            f'--project={classifier}',
-            'output_format=tif',
-            '--export_dtype=uint8',
-            '--export_source=Simple Segmentation',
-            f_img
-            ]
-        
-        subprocess.check_output(cmd)
-        
-        
+    elif method == 'sklearn':
+        ds = IFImageDataset(ImgPath, model, use_dask=False)
+        ds.predict()
+        ds.export(out_file)
+        return ds.foutput
     
-    
-    
-
-def train_IF_classifier(img, labels, **kwargs):
-    """
-
-    Parameters
-    ----------
-    image : nd array in XYC format
-        DESCRIPTION.
-    labels : nd labelled array in XY format.
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
-    """
-
-    sigma_min = kwargs.get('sigma_min', 1)
-    sigma_max = kwargs.get('sigma_max', 16)
-    intensity = kwargs.get('intensity', True)
-    edges = kwargs.get('edges', True)
-    texture = kwargs.get('texture', True)
-    multichannel = kwargs.get('multichannel', True)
-    
-    # make sure labels are passed as integers
-    assert labels.dtype == np.uint8
-    
-    # initialize features
-    features_func = partial(feature.multiscale_basic_features,
-                            intensity=intensity, edges=edges, texture=texture,
-                            sigma_min=sigma_min, sigma_max=sigma_max,
-                            multichannel=multichannel)
-    
-    # calculate features
-    features = features_func(img)
-    
-    # initialize and fit RF
-    clf = RandomForestClassifier(n_estimators=50, n_jobs=-1,
-                                 max_depth=10, max_samples=0.05)
-    
-    clf = future.fit_segmenter(labels, features, clf)
-    result = future.predict_segmenter(features, clf)
-    
-    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(9, 4))
-    ax[0].imshow(img)
-    # ax[0].contour(labels)
-    ax[0].set_title('Image, mask and segmentation boundaries')
-    ax[1].imshow(result)
-    ax[1].set_title('Segmentation')
-    fig.tight_layout()
-    
-
-        
 # if __name__ == '__main__':
     
 #     path = r'E:\Promotion\Projects\2021_Necrotic_Segmentation\src\IF\raw'

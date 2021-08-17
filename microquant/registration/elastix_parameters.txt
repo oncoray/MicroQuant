@@ -2,7 +2,7 @@
 (Transform "AffineTransform")
 (MaximumNumberOfIterations 1500)
 (ImagePyramidSchedule 32 32 8 8 1 1)
-(NumberOfSpatialSamples 10000)
+(NumberOfSpatialSamples 4096)
 (FinalGridSpacingInVoxels 16 16 16)
 (Registration "MultiResolutionRegistration")
 (CheckNumberOfSamples "false" )
@@ -46,5 +46,5 @@
 
 // Output control
 (ResultImageFormat "tif")
-(WriteResultImage "true")
+(WriteResultImage "false")
 

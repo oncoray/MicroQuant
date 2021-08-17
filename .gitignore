@@ -71,6 +71,9 @@ docs/_build/
 # PyBuilder
 target/
 
+# Elastix things
+*.exe
+
 # Jupyter Notebook
 .ipynb_checkpoints
 

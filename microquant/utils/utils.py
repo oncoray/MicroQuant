@@ -9,15 +9,74 @@ import os
 import numpy as np
 import pandas as pd
 import tqdm
+import shutil
+from skimage import morphology
+from skimage import measure
+
+def find_Ilastik():
+    
+    " Find Ilastik in local installation files"
+    
+    root = r'C:\Program Files'
+    f = None
+    
+    filelist = os.listdir(root)
+    for file in filelist:
+        if 'ilastik' in file:
+            f = os.path.join(root, file, 'ilastik.exe')
+            break
+            
+    return f
+
+def create_file_structure(df, **kwargs):
+    """
+    Creates MicroQuant output directories
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        Dataframe with names and basedir of every HE-IF image pair
+
+    Returns
+    -------
+    
+    dictionary:
+        dictionary with output subdirectories as keys.
+    """
+    
+    overwrite = kwargs.get('overwrite', False)
+    
+    print(f'\t--> Creating directories for {len(df)} samples')
+    for i, sample in df.iterrows():
+        
+        dirs = {
+            'seg': os.path.join(sample.dir, '1_seg'),
+            'reg': os.path.join(sample.dir, '2_reg'),
+            'res': os.path.join(sample.dir, '3_res')
+            }
+        
+        for key in dirs.keys():
+            
+            # if overwrite is set, delete old files and create new (empty) directories
+            if overwrite:
+                try:
+                    shutil.rmtree(dirs[key])
+                except:
+                    pass
+            
+            os.mkdir(dirs[key])
+        
+    return dirs
+
 
 def normalize(image, **kwargs):
-    
+    "Normalizes an image to quantile grayvalue range"    
     
     lower = kwargs.get('lower', {0: 0.2, 1: 0.05, 2:0.05})
     upper = kwargs.get('upper', {0: 0.99, 1: 0.98, 2:0.98})
     
     for i in range(3):
-        channel = image[i, :, :]
+        channel = image[:, :, i]
         l = np.quantile(channel, q = lower[i])
         u = np.quantile(channel, q = upper[i])
         
@@ -26,7 +85,7 @@ def normalize(image, **kwargs):
         channel[channel < 0] = 0
         channel[channel > 255] = 255
         
-        image[i, :, :] = channel
+        image[:, :, i] = channel
 
     return image.astype(np.uint8)
 

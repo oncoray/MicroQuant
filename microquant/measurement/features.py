@@ -8,8 +8,8 @@ Created on Tue Aug 17 18:15:38 2021
 import os
 import numpy as np
 import pandas as pd
+
 import matplotlib.pyplot as plt
-import skimage
 import tifffile as tf
 from stsci import ndimage
 
@@ -20,6 +20,31 @@ cle.select_device()
     
 def fractional_value(MapA, MapB):
     return np.sum(np.multiply(MapA, MapB))/np.sum(MapB)
+
+def distribution_moments(Image, Mask, **kwargs):
+    
+    "Returns histogram descriptors for Pixel values in an Image masked with a Mask (bool)"
+
+    assert Mask.dtype == bool
+    
+    Prefix = kwargs.get('prefix', '')
+    nbins = kwargs.get('nbins', 100)
+    
+    Results = dict()
+    
+    values = Image[Mask == True].flatten()    
+    Results[Prefix + "_Median"] = np.median(values)
+    Results[Prefix + "_Mean"] = values.mean()
+    Results[Prefix + "_std"] = values.std()
+    Results[Prefix + "_V10"] = np.quantile(values, 0.1)
+    Results[Prefix + "_V25"] = np.quantile(values, 0.25)
+    Results[Prefix + "_V75"] = np.quantile(values, 0.75)
+    Results[Prefix + "_V95"] = np.quantile(values, 0.95)
+    
+    Histogram = dict()
+    Histogram['hist'], Histogram['edges'] = np.histogram(values, nbins)
+    
+    return Results, Histogram
     
 
 def make_IF_mask(IF):
@@ -43,6 +68,16 @@ def make_IF_mask(IF):
     Perfusion[IF == labels['Perfusion']] = True
     
     return Hypoxia, CD31, Perfusion
+
+def hist_to_file(hist, edges, file):
+    
+    df = pd.DataFrame()
+    df['Frequency'] = hist
+    df['Edges'] = edges[:-1] + np.diff(edges).mean()/2.0  # save centers of histogram bars instead of edges
+    
+    df.to_csv(file)
+    
+    return 1
 
 def make_tumor_mask(HE):
     "Generates a binary mask of tumor areas (everything included)"
@@ -70,8 +105,15 @@ def make_tumor_mask(HE):
     return Tumor, Vital, SMA
     
 
-def measure(segmented_HE, segmented_IF):
+def measure(segmented_HE, segmented_IF, **kwargs):
     "Measured defined features from provided input images HE and IF"
+    
+    pxsize = kwargs.get('pxsize', 0.44)
+    HE_image = kwargs.get('HE_root', '')
+    IF_image = kwargs.get('IF_root', '')
+    directory = kwargs.get('dir', '')
+    
+    res_dir = os.path.dirname(segmented_HE)
     
     HE = tf.imread(segmented_HE)
     IF = tf.imread(segmented_IF)
@@ -81,6 +123,10 @@ def measure(segmented_HE, segmented_IF):
     
     # Measure HE-related params
     meas = dict()
+    meas['dir'] = directory
+    meas['HE_input'] = HE_image
+    meas['IF_input'] = IF_image
+    
     meas['Necrotic_fraction'] = 1 -fractional_value(Vital, Tumor)
     meas['SMA_fraction'] = fractional_value(SMA, Tumor)
     
@@ -88,12 +134,21 @@ def measure(segmented_HE, segmented_IF):
     meas['Hypoxic_fraction'] = fractional_value(Hypoxia, Vital)
     meas['Vascular_fraction'] = fractional_value(CD31, Vital)
     
-    # Distance related features
-    EDT = ndimage.morphology.distance_transform_edt(np.invert(CD31))
+    # Distance related features: Vessels
+    EDT = ndimage.morphology.distance_transform_edt(np.invert(CD31)) * pxsize  # get EDT
+    EDT_fts, EDT_hist = distribution_moments(EDT, Vital, prefix='EDT_CD31')
+    meas.update(EDT_fts)
     
-    return meas
-        
     
+    # Hypoxic-distance (HyDi) related features
+    HyDi_fts, HyDi_hist = distribution_moments(np.multiply(EDT, Hypoxia), Vital, prefix='EDT_Hypoxia')
+    
+    # Save features
+    df = pd.DataFrame(meas, index=[0])
+    df.to_csv(os.path.join(res_dir, 'Features.csv'))
+    
+    hist_to_file(EDT_hist['hist'], EDT_hist['edges'], os.path.join(res_dir, 'EDT_hist.csv'))
+    hist_to_file(HyDi_hist['hist'], HyDi_hist['edges'], os.path.join(res_dir, 'HyDi_hist.csv'))    
     
 if __name__ == '__main__':
     result = measure(r'C:\Users\johan\Desktop\MQ\ImgData\3_res\HE_seg.tif',

@@ -1,7 +1,8 @@
 """Main module."""
 
-from utils import segmentation as seg
-from utils import registration as reg
+from segmentation import segmentation as seg
+from registration import registration as reg
+from measurement import features
 
 from utils import utils
 from utils.model import model
@@ -9,6 +10,11 @@ from utils.model import model
 import pandas as pd
 import os
 
+class MQ_job():
+    def __init__(self, **kwargs):
+        
+        HE_image = kwargs.get('HE_raw', '')
+        IF_image = kwargs.get('IF_raw', '')
 
 def microquant(dataframe, overwrite=True, **kwargs):
     """
@@ -38,14 +44,16 @@ def microquant(dataframe, overwrite=True, **kwargs):
         df = dataframe
         
     df = utils.check_data(df)
-    # utils.create_file_structure(df, **kwargs)
+    utils.create_file_structure(df, **kwargs)
     
-    HE_model = model(path = r'D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\models\HE\model_210809')
-    IF_model = model(path = r'D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\models\IF\model_210810')
+    HE_model = model(path = os.path.abspath(r'.\models\HE\model_210809'))
+    IF_model = model(path = os.path.abspath(r'.\models\IF\model_210810'))
     
     for i, sample in df.iterrows():
         
         # segmentation
+        print('')
+        print('\t----SEGMENTATIOM----')
         f_HE = seg.segment_he(
                 ImgPath=os.path.join(sample.dir, sample.HE_img),
                 model = HE_model,
@@ -60,12 +68,18 @@ def microquant(dataframe, overwrite=True, **kwargs):
                 method='sklearn'
                 )
         
-        reg.register(f_IF, f_HE)
+        print('')
+        print('\t----REGISTRATION----')
+        f_IF, f_HE = reg.register_and_transform(f_IF, f_HE)
+        
+        print('')
+        print('\t----MEASUREMENT----')
+        features.measure(f_HE, f_IF)
     
 
 if __name__ == "__main__":
     
-    root = r'C:\Users\johan\Desktop\Test_dir'
+    root = r'C:\Users\johan\Desktop\MQ\ImgData'
     df = utils.browse_data(root)
     
     out = microquant(df)

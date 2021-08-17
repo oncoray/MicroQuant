@@ -1,12 +1,12 @@
 // General settings
 (Transform "AffineTransform")
-(MaximumNumberOfIterations 1500)
-(ImagePyramidSchedule 32 32 8 8 1 1)
+(MaximumNumberOfIterations 1000)
+(ImagePyramidSchedule 4 4 1 1)
 (NumberOfSpatialSamples 4096)
 (FinalGridSpacingInVoxels 16 16 16)
 (Registration "MultiResolutionRegistration")
 (CheckNumberOfSamples "false" )
-(NumberOfResolutions 3)
+(NumberOfResolutions 2)
 
 (FixedImagePyramid "FixedSmoothingImagePyramid" )
 (MovingImagePyramid "MovingSmoothingImagePyramid" )
@@ -20,7 +20,7 @@
 (NewSamplesEveryIteration "true")
 
 (ResultImagePixelType "float")
-(DefaultPixelValue 0)
+(DefaultPixelValue 1)
 
 // Registration algorithm
 (Optimizer "AdaptiveStochasticGradientDescent")
@@ -35,6 +35,7 @@
 // Interpolation
 (Interpolator "LinearInterpolator" )
 (ResampleInterpolator "FinalBSplineInterpolator")
+(FinalBSplineInterpolationOrder 0)
 
 //Parameter estimation
 (AutomaticParameterEstimation "true")

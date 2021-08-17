@@ -8,6 +8,7 @@ Created on Wed Jul 28 18:42:34 2021
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import segmentation, feature, future
+from skimage import transform
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
 
@@ -79,7 +80,7 @@ class IFImageDataset():
         X = shape[0]//ts + 1
         Y = shape[1]//ts + 1
         
-        tk0 = tqdm(np.arange(0, X, 1))
+        tk0 = tqdm(np.arange(0, X, 1), desc='\tRandom forest-based segmentation')
         for x in tk0:
             for y in np.arange(0, Y, 1):
                 
@@ -168,9 +169,6 @@ class ILPImageDataset():
         
 class HEImageDataset():
     def __init__(self, filename, n_classes, **kwargs):
-        
-        print('*** New image ***')
-        print(f'Source: {filename}')
         
         self.target_pixsize = kwargs.get('target_pixsize', 2.5)
         self.patch_size = kwargs.get('patch_size', 128)
@@ -318,8 +316,15 @@ class HEImageDataset():
         if upscale:
             print('\t---> Upscaling')
             self.prediction = self.prediction.transpose((1,2,0))
-            self.prediction = cv2.resize(self.prediction,
-                                         dsize=(self.Image.dims.X, self.Image.dims.Y))
+            factor = self.Image.dims.X/self.prediction.shape[0]
+            
+            # prediction = torch.from_numpy(self.prediction)
+            # prediction.to(self.device)
+            # upsampler = torch.nn.Upsample(size=[self.Image.dims.Y,
+            #                                     self.Image.dims.X,
+            #                                     np.min(self.prediction.shape)])
+            # self.prediction = upsampler(prediction).detach().cpu().numpy()
+            self.prediction = transform.rescale(self.prediction, scale=(factor, factor, 1.0))
         
         if softmax:
             self.prediction = np.argmax(self.prediction, axis=-1)

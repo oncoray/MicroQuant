@@ -11,7 +11,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 import tifffile as tf
-from stsci import ndimage
+from scipy import ndimage
+from skimage.measure import regionprops, label
 
 # Use GPU for processing
 import pyclesperanto_prototype as cle
@@ -20,6 +21,7 @@ cle.select_device()
     
 def fractional_value(MapA, MapB):
     return np.sum(np.multiply(MapA, MapB))/np.sum(MapB)
+
 
 def distribution_moments(Image, Mask, **kwargs):
     
@@ -82,6 +84,7 @@ def hist_to_file(hist, edges, file):
 def make_tumor_mask(HE):
     "Generates a binary mask of tumor areas (everything included)"
     
+    print('\t---> Generating masks')
     labels = dict()
     labels['Background'] = 0
     labels['Necrosis'] = 1
@@ -103,6 +106,23 @@ def make_tumor_mask(HE):
     SMA[HE == labels['SMA']] = True
     
     return Tumor, Vital, SMA
+    
+def measure_vessel_sizes(label_img, **kwargs):
+    
+    pxsize = kwargs.get('pxsize', 0.44)
+    
+    label_img = label(label_img)
+    regions = regionprops(label_img)
+    
+    Vessel_minor_radii = [prop.minor_axis_length * pxsize for prop in regions]
+    # Vessel_major_radii = [prop.major_axis_length * pxsize for prop in regions]
+    Vessel_area = [prop.area * pxsize for prop in regions]
+    
+    Vessel_area = np.histogram(Vessel_area)
+    Vessel_radii = np.histogram(Vessel_minor_radii)
+    
+    return Vessel_area, Vessel_radii
+        
     
 
 def measure(segmented_HE, segmented_IF, **kwargs):
@@ -134,11 +154,16 @@ def measure(segmented_HE, segmented_IF, **kwargs):
     meas['Hypoxic_fraction'] = fractional_value(Hypoxia, Vital)
     meas['Vascular_fraction'] = fractional_value(CD31, Vital)
     
+    # Vessel sizes
+    Vessel_area, Vessel_radii = measure_vessel_sizes(CD31)
+    hist_to_file(Vessel_area[0], Vessel_area[1], os.path.join(res_dir, 'Vessel_area_hist.csv'))
+    hist_to_file(Vessel_radii[0], Vessel_radii[1], os.path.join(res_dir, 'Vessel_radii_hist.csv'))
+    
+    
     # Distance related features: Vessels
     EDT = ndimage.morphology.distance_transform_edt(np.invert(CD31)) * pxsize  # get EDT
     EDT_fts, EDT_hist = distribution_moments(EDT, Vital, prefix='EDT_CD31')
-    meas.update(EDT_fts)
-    
+    meas.update(EDT_fts)    
     
     # Hypoxic-distance (HyDi) related features
     HyDi_fts, HyDi_hist = distribution_moments(np.multiply(EDT, Hypoxia), Vital, prefix='EDT_Hypoxia')
@@ -148,8 +173,8 @@ def measure(segmented_HE, segmented_IF, **kwargs):
     df.to_csv(os.path.join(res_dir, 'Features.csv'))
     
     hist_to_file(EDT_hist['hist'], EDT_hist['edges'], os.path.join(res_dir, 'EDT_hist.csv'))
-    hist_to_file(HyDi_hist['hist'], HyDi_hist['edges'], os.path.join(res_dir, 'HyDi_hist.csv'))    
+    hist_to_file(HyDi_hist['hist'], HyDi_hist['edges'], os.path.join(res_dir, 'HyDi_hist.csv'))
     
 if __name__ == '__main__':
-    result = measure(r'C:\Users\johan\Desktop\MQ\ImgData\3_res\HE_seg.tif',
-                     r'C:\Users\johan\Desktop\MQ\ImgData\3_res\IF_transformed.tif')
+    result = measure(r'C:\Users\johan\Desktop\Test_dir\SampleA\3_res\HE_seg.tif',
+                     r'C:\Users\johan\Desktop\Test_dir\SampleA\3_res\IF_transformed.tif')

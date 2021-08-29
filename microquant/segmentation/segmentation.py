@@ -62,13 +62,24 @@ class IFImageDataset():
     
     def read_czi(self, filename):
         
-        # Read czi image
-        self.AICS = aicsimageio.AICSImage(filename)
         
-        if self.use_dask:
-            self.dask_image = self.AICS.get_dask_image_data("YXC")
-        else:
-            self.dask_image = self.AICS.get_image_data("YXC")
+        try:
+        # Read czi image
+            self.AICS = aicsimageio.AICSImage(filename)
+            
+            if self.use_dask:
+                self.dask_image = self.AICS.get_dask_image_data("YXC")
+            else:
+                self.dask_image = self.AICS.get_image_data("YXC")
+            
+        # use pylibczi in case of error
+        except ValueError:
+            Image = aicspylibczi.CziFile(filename)
+            C0 = Image.read_mosaic(C=0)
+            C1 = Image.read_mosaic(C=1)
+            C2 = Image.read_mosaic(C=2)
+
+            self.dask_image = np.vstack([C0, C1, C2]).transpose((1,2,0))
             
         self.dask_image = normalize(self.dask_image)
         self.prediction = np.zeros_like(self.dask_image[:,:,0])  # allocate output

@@ -14,11 +14,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import joblib
 
-from skimage import data, segmentation, feature, future
+from skimage import feature, future
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
-
-import pandas as pd
 
 def sample_from_image(image, mask, size=256, n_tiles=32):
     
@@ -52,8 +50,6 @@ def sample_from_image(image, mask, size=256, n_tiles=32):
         labels = np.concatenate((labels, label_tile), 0)
         
     return features, labels
-        
-
     
 
 if __name__ == "__main__":

@@ -79,7 +79,7 @@ def microquant(dataframe, overwrite=True, **kwargs):
 
 if __name__ == "__main__":
     
-    root = r'C:\Users\johan\Desktop\MQ\ImgData'
+    root = r'C:\Users\johan\Desktop\Test_dir\SampleA'
     df = utils.browse_data(root)
     
     out = microquant(df)

@@ -12,7 +12,7 @@ import tifffile as tf
 from subprocess import check_output
 
 import cv2
-from stsci import ndimage
+from scipy import ndimage
 from skimage import measure
 
 import shutil

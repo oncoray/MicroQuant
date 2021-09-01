@@ -13,21 +13,33 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
+import pandas as pd
+from tqdm import tqdm
+
+os.chdir(r'D:\Documents\Promotion\Projects\2021_MicroQuant\microquant')
+from utils.utils import normalize
 
 from skimage import feature, future
 from sklearn.ensemble import RandomForestClassifier
 from functools import partial
 
-def sample_from_image(image, mask, size=256, n_tiles=32):
+def sample_from_image(image, mask, size=256, n_tiles=16):
     
-    x = np.random.randint(low=size//2, high=(image.shape[0]-size//2), size=n_tiles)
-    y = np.random.randint(low=size//2, high=(image.shape[1]-size//2), size=n_tiles)
+    image = normalize(tf.imread(image))
+    mask = tf.imread(mask)
+    
+    # Transpose to YXC
+    if image.shape[0] == np.min(image.shape):
+        image = image.transpose((1,2,0))
+    
+    x = np.random.randint(low=size//2, high=(mask.shape[0]-size//2), size=n_tiles)
+    y = np.random.randint(low=size//2, high=(mask.shape[1]-size//2), size=n_tiles)
     
     sigma_min = 4
     sigma_max = 16
     
     features_func = partial(feature.multiscale_basic_features,
-            intensity=True, edges=False, texture=True,
+            intensity=True, edges=True, texture=True,
             sigma_min=sigma_min, sigma_max=sigma_max,
             multichannel=True)
     
@@ -51,25 +63,49 @@ def sample_from_image(image, mask, size=256, n_tiles=32):
         
     return features, labels
     
-
-if __name__ == "__main__":
-    print('Here we go')
-    plot = False
-
-    root = r'C:\Users\johan\Desktop\IFsegmentation'
+def run_segmentation(directory, **kwargs):
     
-    image = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm.tif')
-    mask = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm_Simple Segmentation.tif')
+    plot = kwargs.get('plot', True)
     
-    image = tf.imread(image)
-    mask = tf.imread(mask)
+    image_dir = os.path.join(directory, 'Images')
+    label_dir = os.path.join(directory, 'Labels')
     
-    features, labels = sample_from_image(image, mask)
+    images = os.listdir(image_dir)
+    labels = os.listdir(label_dir)
     
+    # Make dataframe ith image/label pairs
+    df = pd.DataFrame(columns = ['images', 'labels'])
+    index = 0
+    for image in images:
+        for label in labels:
+            if label == image:
+                df.loc[index] = [os.path.join(image_dir, image), 
+                                 os.path.join(label_dir, label)]
+                index += 1
+                
+    
+    # ALlocate first column of data patches
+    print('Preapring featuremaps...', end='')
+    features, labels = sample_from_image(df.loc[0, 'images'],
+                                         df.loc[0, 'labels'])
+    print('Done.')
+    
+    for index in tqdm(np.asarray(df.index[1:]), desc='Adding samples'):
+        _features, _labels = sample_from_image(df.loc[index, 'images'],
+                                               df.loc[index, 'labels'])
+        
+        features = np.concatenate((features, _features), axis=1)
+        labels = np.concatenate((labels, _labels), axis=1)
+    
+    print('Fitting model...', end='')
     clf = RandomForestClassifier(n_estimators=50, n_jobs=-1,
-                             max_depth=10, max_samples=0.05, bootstrap=True)
+                         max_depth=10, max_samples=0.05, bootstrap=True)
     clf = future.fit_segmenter(labels, features, clf)
+    print('Done.')
+    
+    print('Running prediction...', end='')
     result = future.predict_segmenter(features, clf)
+    print('Done.')
     
     if plot:
         fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(9, 4))
@@ -78,8 +114,21 @@ if __name__ == "__main__":
         ax[1].imshow(result)
         ax[1].set_title('Segmentation')
         fig.tight_layout()
+        
+    return clf
+
+if __name__ == "__main__":
+    print('Here we go')
+    plot = False
+
+    root = r'C:\Users\johan\Desktop\Train_dir'
     
-    joblib.dump(clf, r"D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\models\IF\model_210810/sklearn_random_forest.joblib", compress=2)
+    image = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm.tif')
+    mask = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm_Simple Segmentation.tif')
+
+    model = run_segmentation(root)
+    
+    joblib.dump(model, r"D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\models\IF\model_210810/sklearn_random_forest.joblib", compress=2)
     
     
 

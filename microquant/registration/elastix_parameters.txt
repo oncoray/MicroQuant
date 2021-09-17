@@ -1,12 +1,12 @@
 // General settings
-(Transform "AffineTransform")
-(MaximumNumberOfIterations 1000)
-(ImagePyramidSchedule 4 4 1 1)
+(Transform "SimilarityTransform")
+(MaximumNumberOfIterations 1500)
+(ImagePyramidSchedule 128 128 64 64 32 32 16 16 4 4 1 1)
 (NumberOfSpatialSamples 4096)
 (FinalGridSpacingInVoxels 16 16 16)
 (Registration "MultiResolutionRegistration")
 (CheckNumberOfSamples "false" )
-(NumberOfResolutions 2)
+(NumberOfResolutions 5)
 
 (FixedImagePyramid "FixedSmoothingImagePyramid" )
 (MovingImagePyramid "MovingSmoothingImagePyramid" )

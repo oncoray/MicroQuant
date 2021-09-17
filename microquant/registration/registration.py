@@ -14,13 +14,15 @@ from subprocess import check_output
 import cv2
 from scipy import ndimage
 from skimage import measure
+from skimage import morphology
+from skimage.measure import label, regionprops, regionprops_table
 
 import shutil
 import matplotlib.pyplot as plt
 
 # Use GPU for processing
 import pyclesperanto_prototype as cle
-cle.select_device()
+cle.select_device("MX230")
 
 
 def register_and_transform(Moving_image_path, Target_image_path, **kwargs):
@@ -29,7 +31,7 @@ def register_and_transform(Moving_image_path, Target_image_path, **kwargs):
     elastix_exe         = kwargs.get('elastix_exe', os.path.join(os.getcwd(), 'registration', 'elastix-5.0.1-win64', 'elastix.exe'))
     elastix_params      = kwargs.get('elastix_params', os.path.join(os.getcwd(), 'registration', 'elastix_parameters.txt'))
     do_shape_adjustment = kwargs.get('shape_adjustment', True)
-    compress_output     = kwargs.get('compress_output', True)
+    compress_output     = kwargs.get('compress_output', False)
     
     reg_dir = os.path.abspath(os.path.join(os.path.dirname(Moving_image_path), '..', '2_reg'))
 
@@ -95,12 +97,13 @@ def register_and_transform(Moving_image_path, Target_image_path, **kwargs):
         )
     
     # Replace output with png files to save storage
-    convert_to_png([
-        Moving_image_path,
-        Target_image_path,
-        fMoving,
-        fFixed,
-        os.path.join(reg_dir, 'result.tif')])
+    if compress_output:
+        convert_to_png([
+            Moving_image_path,
+            Target_image_path,
+            fMoving,
+            fFixed,
+            os.path.join(reg_dir, 'result.tif')])
     
     return os.path.join(meas_dir, 'IF_transformed.tif'), os.path.join(meas_dir, 'HE_seg.tif')
     
@@ -109,7 +112,7 @@ def register_and_transform(Moving_image_path, Target_image_path, **kwargs):
 def convert_to_png(list_of_images):
     "Converts a list of files to (compressed) png images"
     
-    for file in list_of_images:
+    for file in tqdm.tqdm(list_of_images, desc='\t\tConverting output to png...'):
         image = tf.imread(file)
         cv2.imwrite(file.replace('tif', 'png'), image, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
         os.remove(file)
@@ -141,43 +144,74 @@ def simplify_labels(label_image, **kwargs):
     "Filters background spots away from label image"
 
     background_label = kwargs.get('background_label', 1)
-    smoothing_iterations = kwargs.get('n_smoothing', 32)
+    smoothing_iterations = kwargs.get('n_smoothing', 8)
     
     binary = np.zeros_like(label_image, dtype='uint8')
     binary[label_image != background_label] = 1
     
-    input = cle.push(binary)
-    tmp = cle.create_binary_like(input)
+    # Use regionprops to find largest connected area
+    label_img = label(binary)
+    regions = regionprops(label_img)
     
-    # Erosion
-    tk0 = tqdm.tqdm(range(smoothing_iterations), desc='\t--->Doing preprocessing 1/2')
-    for i in tk0:
-        cle.erode_labels(input, tmp)
-        cle.erode_labels(tmp, input)
+    # find largest blob (= tissue section)
+    largest = 0
+    index = 0
+    for props in tqdm.tqdm(regions, desc='\t\tClearing background...'):
+        if props.area > largest:
+            largest = props.area
+            index = props.label
             
-    # get largest connected component
-    binary = cle.pull(input)
-    labels = measure.label(binary)
-    assert labels.max() != 0
-    binary = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
+    binary[label_img != index] = 0
+    binary = np.invert(binary)
     
-    # Fill holes
-    binary = ndimage.binary_fill_holes(binary)
+    # find largest blo (= background) - all other islands/blobs are holes
+    label_img = label(binary)
+    regions = regionprops(label_img)
     
-    # Dilation
-    input = cle.push(binary)
-    tk0 = tqdm.tqdm(range(smoothing_iterations), desc='\t---> Doing preprocessing 2/2')
-    for i in tk0:
-        cle.dilate_labels(input, tmp)
-        cle.dilate_labels(tmp, input)
+    largest = 0
+    index = 0
+    for props in tqdm.tqdm(regions, desc='\t\tFilling holes...'):
+        if props.area > largest:
+            largest = props.area
+            index = props.label
+            
+    binary[label_img != index] = 0
+    binary = np.invert(binary).astype(np.uint8)
     
-    return cle.pull(input)
+    
+    # input = cle.push(binary)
+    # tmp = cle.create_binary_like(input)
+    
+    # # Erosion
+    # tk0 = tqdm.tqdm(range(smoothing_iterations), desc='\t--->Doing preprocessing 1/2')
+    # for i in tk0:
+    #     cle.erode_labels(input, tmp)
+    #     cle.erode_labels(tmp, input)
+            
+    # # get largest connected component
+    # binary = cle.pull(input)
+    # labels = measure.label(binary)
+    # assert labels.max() != 0
+    # binary = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
+    
+    # # Fill holes
+    # binary = ndimage.binary_fill_holes(binary)
+    
+    # # Dilation
+    # input = cle.push(binary)
+    # tk0 = tqdm.tqdm(range(smoothing_iterations), desc='\t---> Doing preprocessing 2/2')
+    # for i in tk0:
+    #     cle.dilate_labels(input, tmp)
+    #     cle.dilate_labels(tmp, input)
+    
+    # return cle.pull(input)
+    return binary
 
 
 if __name__ == '__main__':
     register_and_transform(
-        Moving_image_path=r'C:\Users\johan\Desktop\MQ\ImgData\1_seg\IF_seg.tif',
-        Target_image_path=r'C:\Users\johan\Desktop\MQ\ImgData\1_seg\HE_seg_Unet.tif',
-        elastix_exe = r'E:\Promotion\Projects\2021_MicroQuant\microquant\registration\elastix-5.0.1-win64\elastix.exe',
-        elastix_params = r'E:\Promotion\Projects\2021_MicroQuant\microquant\registration\elastix_parameters.txt'
+        Moving_image_path=r'C:\Users\johan\Desktop\MQ\Test_dir\SampleB\1_seg\IF_seg.tif',
+        Target_image_path=r'C:\Users\johan\Desktop\MQ\Test_dir\SampleB\1_seg\HE_seg_Unet.tif',
+        elastix_exe = r'D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\registration\elastix-5.0.1-win64\elastix.exe',
+        elastix_params = r'D:\Documents\Promotion\Projects\2021_MicroQuant\microquant\registration\elastix_parameters.txt'
         )

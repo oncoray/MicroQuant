@@ -52,16 +52,12 @@ class IFImageDataset():
         self.image = self.read_czi(self.filename)  # read czi
         self.clf = joblib.load(self.classifier)  # load RF classifier file
         
-
-        
-        
         self.features_func = partial(feature.multiscale_basic_features,
-                                     intensity=True, edges=False, texture=True,
+                                     intensity=True, edges=True, texture=True,
                                      sigma_min=self.sigma_min, sigma_max=self.sigma_max,
                                      multichannel=True, num_workers=4)    
     
     def read_czi(self, filename):
-        
         
         try:
         # Read czi image

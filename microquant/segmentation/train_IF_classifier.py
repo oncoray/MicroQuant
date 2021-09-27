@@ -122,9 +122,7 @@ if __name__ == "__main__":
     plot = False
 
     root = r'C:\Users\johan\Desktop\Train_dir'
-    
-    image = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm.tif')
-    mask = os.path.join(root, '181212_N182f_SAS_29_1_IF_norm_Simple Segmentation.tif')
+
 
     model = run_segmentation(root)
     

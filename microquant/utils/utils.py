@@ -12,6 +12,12 @@ import tqdm
 import shutil
 from skimage import morphology
 from skimage import measure
+from skimage import filters
+
+import pyclesperanto_prototype as cle
+# initialize GPU
+cle.select_device("MX230")
+print("Used GPU: " + cle.get_device().name)
 
 def find_Ilastik():
     
@@ -75,15 +81,29 @@ def normalize(image, **kwargs):
     lower = kwargs.get('lower', {0: 0.2, 1: 0.05, 2:0.05})
     upper = kwargs.get('upper', {0: 0.99, 1: 0.98, 2:0.98})
     
-    for i in range(3):
+    if image.shape[0] == np.min(image.shape):
+        image = image.transpose((1,2,0))
+    
+    for i in tqdm.tqdm(range(3), desc='Processing background and normalizing...'):
         channel = image[:, :, i]
-        l = np.quantile(channel, q = lower[i])
-        u = np.quantile(channel, q = upper[i])
+        
+        input = cle.push(channel)
+        background = cle.push(np.zeros_like(channel))
+        
+        cle.gaussian_blur(input,background, 50, 50)
+        background = cle.pull(background)
+        
+        channel = channel - background
+        channel[channel <0] = 0
+        
+        flat = channel[channel != 0].flatten()
+        l = np.quantile(flat, q = lower[i])
+        u = np.quantile(flat, q = upper[i])
         
         # normalize to 0-255
-        channel = 255 * (channel - l)/(u - l)
-        channel[channel < 0] = 0
-        channel[channel > 255] = 255
+        channel = 255 * (channel- l)/(u - l)
+        channel[channel < 0] = 0  # move negative values to zero
+        channel[channel > 255] = 255 # move values >255 to 255
         
         image[:, :, i] = channel
 

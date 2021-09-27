@@ -14,6 +14,8 @@ import tifffile as tf
 from scipy import ndimage
 from skimage.measure import regionprops, label
 
+import napari
+
 # Use GPU for processing
 import pyclesperanto_prototype as cle
 cle.select_device()
@@ -124,6 +126,19 @@ def measure_vessel_sizes(label_img, **kwargs):
     return Vessel_area, Vessel_radii
         
     
+def pretty_picture(R, G, B, label):
+    "Generate a prettyfied image for visualization"
+    
+    
+    image = np.vstack([R[None, :, :],
+                       G[None, :, :],
+                       B[None, :, :]]).astype(int)
+    image = image.transpose((1,2,0))
+    
+    
+    plt.imshow(image)
+    plt.imshow(label, cmap='gray', alpha=0.5)
+    
 
 def measure(segmented_HE, segmented_IF, **kwargs):
     "Measured defined features from provided input images HE and IF"
@@ -175,6 +190,8 @@ def measure(segmented_HE, segmented_IF, **kwargs):
     hist_to_file(EDT_hist['hist'], EDT_hist['edges'], os.path.join(res_dir, 'EDT_hist.csv'))
     hist_to_file(HyDi_hist['hist'], HyDi_hist['edges'], os.path.join(res_dir, 'HyDi_hist.csv'))
     
+    pretty_picture(CD31, Hypoxia, Perfusion, 0.5*np.multiply(Tumor, np.invert(Vital)))
+    
 if __name__ == '__main__':
-    result = measure(r'C:\Users\johan\Desktop\Test_dir\SampleA\3_res\HE_seg.tif',
-                     r'C:\Users\johan\Desktop\Test_dir\SampleA\3_res\IF_transformed.tif')
+    result = measure(r'C:\Users\johan\Desktop\MQ\Test_dir\SampleB\3_res\HE_seg.tif',
+                     r'C:\Users\johan\Desktop\MQ\Test_dir\SampleB\3_res\IF_transformed.tif')

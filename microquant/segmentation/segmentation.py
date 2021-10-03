@@ -336,7 +336,7 @@ class HEImageDataset():
             tf.imwrite(filename, self.prediction.astype('uint8'))
             self.foutput = filename
             
-def segment_he(ImgPath, MQmodel, **kwargs):
+def segment_he(MQJob, MQmodel, **kwargs):
     """
     Parameters
     ----------
@@ -348,22 +348,25 @@ def segment_he(ImgPath, MQmodel, **kwargs):
     None.
 
     """
-        
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
+    # Get path of input image
+    ImgPath = os.path.join(MQJob.sample.dir, MQJob.sample.HE_img)
+    if not os.path.exists(ImgPath):
+        raise FileNotFoundError(f'Input image {ImgPath} not found!')
+    
+    # select usable gpu
+    device = MQJob.device
+    
+    # processing setting
     stride = kwargs.get('stride', 16)
     output = kwargs.get('output', os.path.join(os.path.dirname(ImgPath),
                                                '1_seg', 'HE_seg_Unet.tif'))
     batch_size  = kwargs.get('batch_size', MQmodel.hyperparameters_training['BATCH_SIZE'])
-    img_size    = kwargs.get('patch_size', MQmodel.params['Input']['IMG_SIZE'])
+    patch_size    = kwargs.get('patch_size', MQmodel.params['Input']['IMG_SIZE'])
     pxsize      = kwargs.get('pxsize', MQmodel.params['Input']['PIX_SIZE'])
     n_classes   = kwargs.get('n_classes', MQmodel.hyperparameters_training['N_CLASSES'])
-                        
     
-    if not os.path.exists(ImgPath):
-        raise FileNotFoundError(f'Input image {ImgPath} not found!')
-
-    
+    # Create Unet
     model = smp.Unet(
         encoder_name='resnet50', 
         encoder_weights='imagenet', 
@@ -371,28 +374,32 @@ def segment_he(ImgPath, MQmodel, **kwargs):
         activation=None,
     )
     
+    # Load weights and set model to eval mode
     model.load_state_dict(torch.load(MQmodel.file_model)['model_state_dict'])
     model = model.to(device)
     model.eval()
     
     aug_forw = A.Compose([
-        PadIfNeeded(min_width=img_size, min_height=img_size,
+        PadIfNeeded(min_width=patch_size, min_height=patch_size,
                     border_mode=cv2.BORDER_REFLECT)
     ])
     
+    # Create Dataset for loading
     ds = HEImageDataset(ImgPath,
                         n_classes=n_classes,
-                        patch_size=img_size,
+                        patch_size=patch_size,
                         stride=stride,
                         augmentation=aug_forw,
                         target_pixsize=pxsize,
                         batch_size=batch_size)
-    ds.predict(model)  # run prediction
+    
+    # run and export prediction
+    ds.predict(model)
     ds.export(output, upscale=True, softmax=True)
     
     return ds.foutput
 
-def segment_CD31_Pimo_Hoechst(ImgPath, MQmodel, **kwargs):
+def segment_CD31_Pimo_Hoechst(MQJob, MQmodel, **kwargs):
     """
     Parameters
     ----------
@@ -407,6 +414,10 @@ def segment_CD31_Pimo_Hoechst(ImgPath, MQmodel, **kwargs):
 
     """
     
+    # Get input image
+    ImgPath=os.path.join(MQJob.sample.dir, MQJob.sample.IF_img)
+    
+    # Processing settings
     pxsize      = kwargs.get('pxsize', MQmodel.params['Input']['PIX_SIZE'])
     n_classes   = kwargs.get('n_classes', MQmodel.hyperparameters_training['N_CLASSES'])
     classifier = kwargs.get('classifier', MQmodel.file_model)
@@ -419,32 +430,3 @@ def segment_CD31_Pimo_Hoechst(ImgPath, MQmodel, **kwargs):
     ds.export(out_file)
     
     return ds.foutput
-    
-# if __name__ == '__main__':
-    
-#     path = r'E:\Promotion\Projects\2021_Necrotic_Segmentation\src\IF\raw'
-    
-#     for f in os.listdir(path):
-        
-#         print(f'Normalizing {f}...', end='')
-        
-#         fname = os.path.join(path, f)
-#         img = tf.imread(fname)
-#         img = normalize(img)
-#         cv2.imwrite(os.path.join(path, f.replace('.tif', '') + '_norm.tif'), img[::-1].transpose((1,2,0)))
-#         print('Done')
-    
-    # path = r'K:\Xenias_data\E16b_0039\Micromilieu\Ilastik'
-    
-    # _image = os.path.join(path, 'Composite_E16b_0039.czi - E16b_0039.czi #2.tif')
-    # _mask = os.path.join(path, 'Simple segmentation_E16b_0039.tif')
-    
-    # image = tf.imread(_image)
-    # mask = tf.imread(_mask)
-    
-    # # re-arrange input image to XY
-    # if image.shape[0] == np.min(image.shape):
-    #     image = image.transpose((1,2,0))
-    
-    # train_IF_classifier(image, mask)
-    

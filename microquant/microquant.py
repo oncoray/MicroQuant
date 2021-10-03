@@ -9,6 +9,7 @@ from utils.model import MQ_segmentation_model
 
 import pandas as pd
 import os
+import torch
 
 class MQ_job():
     def __init__(self, **kwargs):
@@ -18,6 +19,9 @@ class MQ_job():
         # Outputs
         self.HE_segmented = ''
         self.IF_segmented = ''
+        
+        # GPU
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         # segmentation
         print('##### New MQ Job created #####')
@@ -29,22 +33,16 @@ class MQ_job():
         
         print('')
         print('\t----SEGMENTATION----')
-        if which == 'HE':
         
-            self.HE_segmented = seg.segment_he(
-                ImgPath=os.path.join(self.sample.dir, self.sample.HE_img),
-                MQmodel=model,
-                batch_size=16,
-                patch_size=128,
-                c_order = 'BGR')
-            
+        # For Brightfield (currently only HE) images
+        if which == 'HE':        
+            self.HE_segmented = seg.segment_he(self, MQmodel=model, c_order = 'BGR')
+        
+        # For immunofluorescent images
         elif which == 'IF':
-            self.IF_segmented = seg.segment_CD31_Pimo_Hoechst(
-                ImgPath=os.path.join(self.sample.dir, self.sample.IF_img),
-                MQmodel=model,
-                method='sklearn')
+            self.IF_segmented = seg.segment_CD31_Pimo_Hoechst(self, MQmodel=model, method='sklearn')
             
-    
+
     def register(self):
         
         if self.HE_segmented == '' or self.IF_segmented == 'IF':
@@ -121,5 +119,4 @@ if __name__ == "__main__":
     root = r'C:\Users\johan\Desktop\MQ\Test_dir\SampleB'
     df = utils.browse_data(root)
     
-    out = microquant(df)
-    
+    out = microquant(df)    

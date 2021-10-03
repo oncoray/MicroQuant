@@ -90,7 +90,7 @@ def normalize(image, **kwargs):
         input = cle.push(channel)
         background = cle.push(np.zeros_like(channel))
         
-        cle.gaussian_blur(input,background, 50, 50)
+        cle.gaussian_blur(input,background, 25, 25)
         background = cle.pull(background)
         
         channel = channel - background

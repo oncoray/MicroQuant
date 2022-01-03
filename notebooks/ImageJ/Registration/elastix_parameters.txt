@@ -1,0 +1,50 @@
+// General settings
+(Transform "AffineTransform")
+(MaximumNumberOfIterations 1500)
+(ImagePyramidSchedule 32 32 8 8 1 1)
+(NumberOfSpatialSamples 10000)
+(FinalGridSpacingInVoxels 16 16 16)
+(Registration "MultiResolutionRegistration")
+(CheckNumberOfSamples "false" )
+(NumberOfResolutions 3)
+
+(FixedImagePyramid "FixedSmoothingImagePyramid" )
+(MovingImagePyramid "MovingSmoothingImagePyramid" )
+
+// Initial Registration
+(AutomaticTransformInitialization "true")
+(AutomaticTransformInitializationMethod "CenterOfGravity")
+
+// Image sampling
+(ImageSampler "RandomCoordinate")
+(NewSamplesEveryIteration "true")
+
+(ResultImagePixelType "float")
+(DefaultPixelValue 0)
+
+// Registration algorithm
+(Optimizer "AdaptiveStochasticGradientDescent")
+(WriteTransformParametersEachIteration "false")
+(WriteTransformParametersEachResolution "false")
+(WriteResultImageAfterEachResolution "false")
+(WritePyramidImagesAfterEachResolution "false")
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
+(UseDirectionCosines "true")
+
+// Interpolation
+(Interpolator "LinearInterpolator" )
+(ResampleInterpolator "FinalBSplineInterpolator")
+
+//Parameter estimation
+(AutomaticParameterEstimation "true")
+(AutomaticScalesEstimation "true")
+(Metric "AdvancedMattesMutualInformation" )
+(NumberOfHistogramBins 8)
+(HowToCombineTransforms "Compose")
+(ErodeMask "false")
+
+// Output control
+(ResultImageFormat "tif")
+(WriteResultImage "true")
+

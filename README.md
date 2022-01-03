@@ -25,7 +25,7 @@ conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 
 You can now proceed to install microquant by cloning the repository and installing it:
 ```bash
-https://github.com/jo-mueller/MicroQuant.git
+git clone https://github.com/jo-mueller/MicroQuant.git
 cd microquant
 pip install -e .
 ```

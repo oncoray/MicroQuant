@@ -14,7 +14,7 @@ This repository contains a collection of scripts for the segmentation, registrat
 ### Python:
 Download and install [Anaconda3](https://www.anaconda.com/products/individual). Create a new environment and install pytorch:
 ```bash
-conda create -n microquant Python=3.8 git
+conda create -n microquant Python=3.8 git jupyter
 conda activate microquant
 ```
 

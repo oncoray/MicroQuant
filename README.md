@@ -5,7 +5,7 @@ This repository contains a collection of scripts for the segmentation, registrat
 ## Requirements:
 
 - H&E Segmentation: Python (Framework: [Pytorch](https://pytorch.org))
-- IF Segmentation: Python (Framework: [scikit llearn ](https://scikit-learn.org/stable/index.html)/[Ilastik](https://www.ilastik.org/)
+- IF Segmentation: Python (Framework: [scikit learn ](https://scikit-learn.org/stable/index.html)/[Ilastik](https://www.ilastik.org/)
 - Registration: [Elastix](https://elastix.lumc.nl/), can be callled from Python or ImageJ macro
 - Measurement: Available in Python and ImageJ macro
 
@@ -34,5 +34,5 @@ torch.cuda.is_available()
 As for the imageJ macro scripts, it is sufficient to download [Fiji](https://imagej.net/software/fiji/) and open the macro in the Fiji toolbar.
 
 ## How to run
-The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant)
+The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant). You can find the ImageJ macro implementation as well as the Python demo notebooks here and here, respectively.
 

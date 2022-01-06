@@ -65,12 +65,12 @@ def segment_he(input_file: str,
         raise FileNotFoundError(f'Input image {input_file} not found!')
 
     if output_file is None:
+        try:
+            os.mkdir(os.path.join(os.path.dirname(input_file), '1_seg'))
+        except Exception:
+            pass
         output = os.path.join(os.path.dirname(input_file),
                               '1_seg', 'HE_seg_Unet.tif')
-    # batch_size  = kwargs.get('batch_size', MQmodel.hyperparameters_training['BATCH_SIZE'])
-    # patch_size    = kwargs.get('patch_size', MQmodel.params['Input']['IMG_SIZE'])
-    # pxsize      = kwargs.get('pxsize', MQmodel.params['Input']['PIX_SIZE'])
-    # n_classes   = kwargs.get('n_classes', MQmodel.hyperparameters_training['N_CLASSES'])
 
     # Create Unet
     model = smp.Unet(

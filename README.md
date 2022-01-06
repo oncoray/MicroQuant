@@ -23,11 +23,11 @@ Install pytorch according to the configuration on the [Pytorch homepage](https:/
 conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 ``` 
 
-If you have an existing GPU on your computer, you can check that the installation worked by running the following commands, which should return `True`:
-```
-python
-import torch
-torch.cuda.is_available()
+You can now proceed to install microquant by cloning the repository and installing it:
+```bash
+git clone https://github.com/jo-mueller/MicroQuant.git
+cd microquant
+pip install -e .
 ```
 
 ### ImageJ macro:

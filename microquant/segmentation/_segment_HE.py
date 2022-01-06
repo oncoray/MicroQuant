@@ -68,8 +68,6 @@ class HEImageDataset():
         elif self.c_order == 'RGB':
             pass
 
-
-
     def create_samplelocations(self):
         """
         Prepares a list of locations where the image will be fed forward
@@ -82,7 +80,7 @@ class HEImageDataset():
 
         self.locations = []
         self.blacklisted_locations = []
-        for x in tqdm(X, desc='\tBrowsing image...'):
+        for x in tqdm.tqdm(X, desc='\tBrowsing image...'):
             for y in Y:
                 patch = self.image[:,
                                    x - self.patch_size//2 : x + self.patch_size//2,
@@ -128,7 +126,7 @@ class HEImageDataset():
         with torch.no_grad():
             dataloader = DataLoader(self, batch_size=self.batch_size,
                                     shuffle=False, num_workers=0)
-            tk0 = tqdm(dataloader, total=len(dataloader), desc='\tTilewise forward segmentation...')
+            tk0 = tqdm.tqdm(dataloader, total=len(dataloader), desc='\tTilewise forward segmentation...')
             for b_idx, data in enumerate(tk0):
 
                 data['image'] = data['image'].to(self.device).float()

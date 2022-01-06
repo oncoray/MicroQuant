@@ -6,7 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
-# Models
+# Models and data
+data/
 microquant/models/
 
 # Distribution / packaging

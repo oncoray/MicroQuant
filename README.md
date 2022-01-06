@@ -23,16 +23,16 @@ Install pytorch according to the configuration on the [Pytorch homepage](https:/
 conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 ``` 
 
-If you have an existing GPU on your computer, you can check that the installation worked by running the following commands, which should return `True`:
-```
-python
-import torch
-torch.cuda.is_available()
+You can now proceed to install microquant by cloning the repository and installing it:
+```bash
+git clone https://github.com/jo-mueller/MicroQuant.git
+cd microquant
+pip install -e .
 ```
 
 ### ImageJ macro:
 As for the imageJ macro scripts, it is sufficient to download [Fiji](https://imagej.net/software/fiji/) and open the macro in the Fiji toolbar.
 
 ## How to run
-The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant). You can find the ImageJ macro implementation as well as the Python demo notebooks here and here, respectively.
+The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant). We proide the ImageJ macro implementation as well as [Python demo notebooks](https://github.com/jo-mueller/MicroQuant/tree/make-package/notebooks/Python).
 

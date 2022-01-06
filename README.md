@@ -34,5 +34,5 @@ pip install -e .
 As for the imageJ macro scripts, it is sufficient to download [Fiji](https://imagej.net/software/fiji/) and open the macro in the Fiji toolbar.
 
 ## How to run
-The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant). We proide the ImageJ macro implementation as well as [Python demo notebooks](https://github.com/jo-mueller/MicroQuant/tree/make-package/notebooks/Python).
+The source code for the Python scripts is provided [here](https://github.com/jo-mueller/MicroQuant/tree/main/microquant). We proide the ImageJ macro implementation as well as [Python demo notebooks](https://github.com/jo-mueller/MicroQuant/tree/main/notebooks/Python).
 
